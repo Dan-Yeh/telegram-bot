@@ -1,6 +1,6 @@
 from datetime import datetime
 import requests
-import json
+import credentials
 from bs4 import BeautifulSoup
 from telegram.ext import Updater
 from telegram.ext import CommandHandler, CallbackQueryHandler
@@ -8,11 +8,10 @@ from telegram.ext import MessageHandler, Filters
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
 from Calendar import getCred, getEvents, addEvent
+from Notion import getToDOTask
 
 # Set token
-with open('telegram-token.json', 'r') as f:
-    data = json.load(f)
-    token = data["telegram_token"]
+token = credentials.telegram_token
 
 # Set updater
 updater = Updater(token=token, use_context=False)
@@ -36,7 +35,7 @@ def help(bot, update):
     """
     show list functionalities of telegram-bot
     """
-    txt = 'commands: /start, /corona, /roger, /getcal, /addcal'
+    txt = 'commands: /start, /corona, /roger, /getcal, /addcal, /gnotion'
     update.message.reply_text(text=txt)
 
 
@@ -136,6 +135,29 @@ def addCalender(bot, update):
             respond_msg = addEvent(service, day, start, end, eventName)
             bot.sendMessage(chat_id=update.message.chat_id, text=respond_msg)
 
+
+def getNotionTasks(bot, update):
+    """
+    Get tasks from task list page from Notion
+    """
+    txt = update.message.text.replace("/gnotion", "")
+    if not txt:
+        boardName = "To DO - today"
+        tasks = getToDOTask(boardName)
+    else:
+        try:
+            txt = txt.replace(" ", "")
+            boardName = txt.split(",")
+        except ValueError as err:
+            bot.sendMessage(chat_id=update.message.chat_id, text=err)
+        else:
+            tasks = getToDOTask(boardName)
+    
+    bot.sendMessage(chat_id=update.message.chat_id, text=boardName)
+    for taskTitle in tasks:
+        bot.sendMessage(chat_id=update.message.chat_id, text=taskTitle)
+
+
 # TODO
 # def Notion():
 dispatcher.add_handler(CommandHandler('start', start))
@@ -144,6 +166,7 @@ dispatcher.add_handler(CommandHandler('corona', coronaReg))
 dispatcher.add_handler(CommandHandler('roger', rogerGame))
 dispatcher.add_handler(CommandHandler('getcal', getCalender))
 dispatcher.add_handler(CommandHandler('addcal', addCalender))
+dispatcher.add_handler(CommandHandler('gnotion', getNotionTasks))
 dispatcher.add_handler(MessageHandler(Filters.text, default))
 
 # bot initiate
